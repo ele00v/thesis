@@ -8,7 +8,6 @@
     Διπλωματική Εργασία 
     Αυτόματη εξαγωγή θέματος και εννοιών από σώμα κειμένων
     Automatic topic and concept extraction from text corpus
-    test commit
 ------------------------------------------------------------"""
 import pandas as pd
 import nltk
