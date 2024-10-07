@@ -6,8 +6,8 @@
     Αριθμός Μητρώου:18390152
     Επιβλέπως Καθηγητής: Φοίβος Μυλωνάς
     Διπλωματική Εργασία 
-    Αυτόματη εξαγωγή θέματος και εννοιών από σώμα κειμένων
-    Automatic topic and concept extraction from text corpus
+    Τίτλος: Αυτόματη εξαγωγή θέματος και εννοιών από σώμα κειμένων
+    Title: Automatic topic and concept extraction from text corpus
 ------------------------------------------------------------"""
 import pandas as pd
 import nltk
@@ -16,59 +16,62 @@ from nltk.tokenize import word_tokenize
 from sklearn.feature_extraction.text import CountVectorizer
 from nltk.stem import PorterStemmer
 from nltk.stem import WordNetLemmatizer
+from sklearn.decomposition import TruncatedSVD
 import string
 
-# Ensure necessary NLTK resources are downloaded
-# Uncomment these lines if you haven't downloaded the required packages
 # nltk.download('punkt')
 # nltk.download('stopwords')
 
-# Initialize stemmer 
+# Αρχικοποίηση του stemmer 
+# Stemming είναι η διαδικασία δημιουργίας μορφολογικών παραλλαγών της ρίζας/βασικής λέξης
 stemmer = PorterStemmer()
 
-# Initialize stopwords
+# Αρχικοποίηση των stopwords 
+# Stopwords είναι οι λέξεις που συνήθως δεν έχουν σημασία στην ανάλυση κειμένου, όπως "ο", "και", "είναι"
 stop_words = set(stopwords.words('english'))
 
-# Function for preprocessing text
+# Συνάρτηση για την προεπεξεργασία του κειμένου
 def preprocess_text(text):
-    # Convert to lowercase
+    # Μετατροπή σε πεζά γράμματα
     text = text.lower()
     
-    # Tokenization
+    # Κατακερματισμός του κειμένου σε λέξεις (Tokenization)
     tokens = word_tokenize(text)
     
-    # Cleaning: Remove punctuation and non-alphabetic characters
+    # Καθαρισμός: Αφαίρεση σημείων στίξης και μη αλφαβητικών χαρακτήρων
     tokens = [word for word in tokens if word.isalpha()]
     
-    # Remove stopwords and apply stemming
+    # Αφαίρεση των stopwords και εφαρμογή stemming
     processed_tokens = [stemmer.stem(word) for word in tokens if word not in stop_words]
     
-    # Join tokens back into a single string
+    # Συνένωση των tokens σε μία ενιαία συμβολοσειρά
     return ' '.join(processed_tokens)
 
-# Open the CSV file and load it into a DataFrame
+# Άνοιγμα του αρχείου CSV και φόρτωσή του σε ένα DataFrame
 df = pd.read_csv('text_corpus.csv', encoding='ISO-8859-1')
 
-# Check if 'Text' column exists before applying preprocessing
+# Έλεγχος αν υπάρχει η στήλη 'Text' πριν την εφαρμογή της προεπεξεργασίας
 if 'Text' in df.columns:
-    # Apply preprocessing to the 'Text' column
+    # Εφαρμογή της συνάρτησης προεπεξεργασίας στη στήλη 'Text'
     df['Processed_Text'] = df['Text'].apply(preprocess_text)
     
-    # Create a Bag of Words (BoW) matrix using CountVectorizer
+    # Δημιουργία του πίνακα Bag of Words χρησιμοποιώντας CountVectorizer
+    #Ο CountVectorizer μετατρέπει τα κείμενα σε ενα πίνακα δύο διαστάσεων όπου κάθε στήλη αντιστοιχεί σε μία λέξη 
+    #από το σύνολο των κειμένων, ενώ κάθε γραμμή αντιπροσωπεύει ένα κείμενο από το σύνολο δεδομένων
     vectorizer = CountVectorizer()
     bow_matrix = vectorizer.fit_transform(df['Processed_Text'])
     
-    # Convert BoW matrix to DataFrame for better visualization (optional)
+    # Μετατροπή του πίνακα Bag of Words σε DataFrame για καλύτερη οπτικοποίηση
     bow_df = pd.DataFrame(bow_matrix.toarray(), columns=vectorizer.get_feature_names_out())
     
-    # Add ID column to the BoW DataFrame
+    # Προσθήκη της στήλης 'ID' στο DataFrame του Bag of Words
     bow_df.insert(0, 'ID', df['ID']) 
     
-    # Display the BoW DataFrame with IDs
+    # Εμφάνιση του DataFrame του Bag of Words
     print("Bag of Words Matrix:")
     print(bow_df)
     
-    # Save the BoW matrix with IDs to a text file
+    # Αποθήκευση του DataFrame του Bag of Words σε αρχείο κειμένου (dow_matrix.txt)
     with open('bow_matrix.txt', 'w', encoding='utf-8') as f:
         f.write(bow_df.to_string(index=False)) 
 else:
