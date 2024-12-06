@@ -12,6 +12,7 @@ Contents
 5. Presentation of graphs and heatmaps to show topic distribution and document-topic probabilities.
 
 Dependencies
+
 To run this program, you will need the following Python libraries:
 nltk, gensim, numpy, pandas, matplotlib, seaborn, scikit-learn, wordcloud
 
