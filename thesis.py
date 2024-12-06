@@ -271,16 +271,3 @@ if __name__ == "__main__":
     plt.legend(title='Θέματα', fontsize=10)
     plt.show()
 
-    
-
-    """ for topic_idx, topic in enumerate(lda.components_):
-        top_features_idx = topic.argsort()[-10:][::-1]
-        top_features = [vectorizer.get_feature_names_out()[i] for i in top_features_idx]
-        top_scores = topic[top_features_idx]
-        
-        plt.figure(figsize=(8, 4))
-        sns.barplot(x=top_scores, y=top_features, palette='coolwarm')
-        plt.title(f"Topic {topic_idx + 1} Top Words")
-        plt.xlabel("Score")
-        plt.show()"""
-
