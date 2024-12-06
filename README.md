@@ -27,3 +27,4 @@ Enter 2 for LSA (Latent Semantic Analysis).
 The program will apply the selected method to the TF-IDF matrix and display the extracted topics.
 The coherence score will be printed to help evaluate the quality of the extracted topics.
 Several visualizations, including topic distribution, heatmap, and stacked bar chart, will be displayed to help understand the topic modeling results.
+
