@@ -15,18 +15,26 @@ import nltk
 import string
 import numpy as np
 import pandas as pd
+from gensim import corpora
+from wordcloud import WordCloud
 import matplotlib.pyplot as plt
+from gensim.corpora import Dictionary
 from nltk.tokenize import word_tokenize
+from sklearn.model_selection import GridSearchCV
 from nltk.corpus import reuters,wordnet,stopwords
+from gensim.models.phrases import Phrases, Phraser
 from nltk.stem import PorterStemmer,WordNetLemmatizer
+from gensim.models.coherencemodel import CoherenceModel
+from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD,LatentDirichletAllocation
 
 # Αναγκαία corpora και λεξικά για το NLTK
-# nltk.download('reuters')
-# nltk.download('punkt')
-# nltk.download('stopwords')
-# nltk.download('wordnet')
+#nltk.download('reuters')
+#nltk.download('punkt')
+#nltk.download('stopwords')
+#nltk.download('wordnet')
 
 # Αρχικοποίηση lemmatizer
 lemmatizer = WordNetLemmatizer()
@@ -85,7 +93,7 @@ train_docs = [doc for doc in documents if doc.startswith('training/')]
 test_docs = [doc for doc in documents if doc.startswith('test/')]
 
 # Επεξεργαζόμαστε τα πρώτα n εκπαιδευτικά έγγραφα
-n = 500  
+n = 500 
 
 # Δημιουργούμε ένα DataFrame για να αποθηκεύσουμε τα δεδομένα από το Reuters corpus
 df_reuters = pd.DataFrame({
@@ -96,31 +104,41 @@ df_reuters = pd.DataFrame({
 # Εφαρμόζουμε τη συνάρτηση preprocess_text στη στήλη με τα κείμενα
 df_reuters['Processed_Text'] = df_reuters['Text'].apply(preprocess_text)
 
-# Δημιουργούμε τη μήτρα "Bag of Words" χρησιμοποιώντας τον CountVectorizer
-vectorizer = CountVectorizer(stop_words='english')
-bow_matrix = vectorizer.fit_transform(df_reuters['Processed_Text'])
+# Μετατρέπουμε τα κείμενα σε λίστες λέξεων (tokens)
+tokenized_texts = [doc.split() for doc in df_reuters['Processed_Text']]
+
+# Εντοπισμός bigrams και trigrams
+phrases = Phrases(tokenized_texts, min_count=2, threshold=5)  # min_count και threshold μπορούν να προσαρμοστούν
+bigram = Phraser(phrases)
+
+# Εφαρμογή των bigrams στα tokenized texts
+texts_with_bigrams = [bigram[doc] for doc in tokenized_texts]
+
+# Δημιουργούμε τη μήτρα TF-IDF χρησιμοποιώντας τον TfidfVectorizer
+vectorizer = TfidfVectorizer(stop_words='english')
+tfidf_matrix = vectorizer.fit_transform(df_reuters['Processed_Text'])
 
 # Μετατρέπουμε τη μήτρα σε DataFrame για καλύτερη οπτικοποίηση
-bow_df = pd.DataFrame(bow_matrix.toarray(), columns=vectorizer.get_feature_names_out())
+tfidf_df = pd.DataFrame(tfidf_matrix.toarray(), columns=vectorizer.get_feature_names_out())
 
 # Προσθέτουμε τη στήλη 'ID'
-bow_df.insert(0, 'ID', df_reuters['ID'])
+tfidf_df.insert(0, 'ID', df_reuters['ID'])
 
-# Εκτύπωση της μήτρας Bag of Words
-#print("Bag of Words Matrix:")
-#print(bow_df)
+# Εκτύπωση της μήτρας TF-IDF
+#print("TF-IDF Matrix:")
+#print(tfidf_df)
 
-# Αποθήκευση της μήτρας Bag of Words σε αρχείο κειμένου
-with open('bow_matrix.txt', 'w', encoding='utf-8') as f:
-    f.write(bow_df.to_string(index=False))
+# Αποθήκευση της μήτρας TF-IDF σε αρχείο κειμένου
+#with open('tfidf_matrix.txt', 'w', encoding='utf-8') as f:
+    #f.write(tfidf_df.to_string(index=False))
     
 # Συνάρτηση για την εφαρμογή του LDA και εξαγωγή των θεμάτων και της αντιστοίχισης θεμάτων-κειμένων
-def apply_lda_with_document_topic_matrix(bow_matrix, vectorizer, num_topics=5, num_words=10):
+def apply_lda(tfidf_matrix, vectorizer, num_topics=5, num_words=10):
     # Δημιουργία του LDA μοντέλου με τον καθορισμένο αριθμό θεμάτων
-    lda = LatentDirichletAllocation(n_components=num_topics, random_state=0)
+    lda = LatentDirichletAllocation(n_components=num_topics, learning_method='online', max_iter=50, random_state=0)
     
-    # Εκπαίδευση του μοντέλου στο Bag of Words
-    lda.fit(bow_matrix)
+    # Εκπαίδευση του μοντέλου στο TF-IDF
+    lda.fit(tfidf_matrix)
     
     # Εξαγωγή των χαρακτηριστικών (λέξεων) για κάθε θέμα
     feature_names = vectorizer.get_feature_names_out()
@@ -133,18 +151,18 @@ def apply_lda_with_document_topic_matrix(bow_matrix, vectorizer, num_topics=5, n
         topics.append(f"Topic {topic_idx + 1}: " + ", ".join(top_features))
     
     # Υπολογισμός του πίνακα θεμάτων-κειμένων
-    document_topic_matrix = lda.transform(bow_matrix)
+    document_topic_matrix = lda.transform(tfidf_matrix)
     
     return topics, document_topic_matrix
 
 
 # Συνάρτηση για την εφαρμογή του LSA και εξαγωγή των θεμάτων και της αντιστοίχισης θεμάτων-κειμένων
-def apply_lsa(bow_matrix, vectorizer, num_topics=5, num_words=10):
+def apply_lsa(tfidf_matrix, vectorizer, num_topics=5, num_words=10):
     # Δημιουργία του μοντέλου LSA με χρήση TruncatedSVD
-    lsa = TruncatedSVD(n_components=num_topics, random_state=0)
+    lsa = TruncatedSVD(n_components=num_topics, n_iter=100, random_state=0)
     
-    # Εφαρμογή του LSA στη μήτρα Bag of Words
-    lsa.fit(bow_matrix)
+    # Εφαρμογή του LSA στη μήτρα TF-IDF
+    lsa.fit(tfidf_matrix)
     
     # Εξαγωγή των χαρακτηριστικών (λέξεων) για κάθε θέμα
     feature_names = vectorizer.get_feature_names_out()
@@ -157,54 +175,112 @@ def apply_lsa(bow_matrix, vectorizer, num_topics=5, num_words=10):
         topics.append(f"Topic {topic_idx + 1}: " + ", ".join(top_features))
     
     # Υπολογισμός του πίνακα θεμάτων-κειμένων
-    document_topic_matrix = lsa.transform(bow_matrix)
+    document_topic_matrix = lsa.transform(tfidf_matrix)
     
     return topics, document_topic_matrix
 
+
+# Συνάρτηση για τον υπολογισμό του coherence score
+def calculate_coherence(topics, texts, dictionary, coherence_type='c_v'):
+    coherence_model = CoherenceModel(topics=topics, texts=texts, dictionary=dictionary, coherence=coherence_type)
+    coherence_score = coherence_model.get_coherence()
+    return coherence_score
+
+texts = [doc.split() for doc in df_reuters['Processed_Text']]
+dictionary = corpora.Dictionary(texts)
+
  # Συνάρτηση για επιλογή μεθόδου ανάλυσης θεμάτων
-def choose_topic_modeling_method(bow_matrix, vectorizer, num_topics=5, num_words=10):
+def choose_topic_modeling_method(tfidf_matrix, vectorizer, num_topics=5, num_words=10):
     print("\nChoose a Topic Modeling Method:")
     print("1. Latent Dirichlet Allocation (LDA)")
     print("2. Latent Semantic Analysis (LSA)")
     choice = input("Enter 1 for LDA or 2 for LSA: ").strip()
     if choice == '1':
         print("\nApplying LDA...")
-        return apply_lda_with_document_topic_matrix(bow_matrix, vectorizer, num_topics, num_words)
+        topics, document_topic_matrix = apply_lda(tfidf_matrix, vectorizer, num_topics, num_words)
+        topic_words = [topic.split(": ")[1].split(", ") for topic in topics]
+        coherence_score = calculate_coherence(topic_words, texts, dictionary, coherence_type='c_v')
+        print(f"\nLDA Coherence Score: {coherence_score:.4f}")
+        return topics, document_topic_matrix
     elif choice == '2':
         print("\nApplying LSA...")
-        return apply_lsa(bow_matrix, vectorizer, num_topics, num_words)
+        topics, document_topic_matrix = apply_lsa(tfidf_matrix, vectorizer, num_topics, num_words)
+        topic_words = [topic.split(": ")[1].split(", ") for topic in topics]
+        coherence_score = calculate_coherence(topic_words, texts, dictionary, coherence_type='c_v')
+        print(f"\nLSA Coherence Score: {coherence_score:.4f}")
+        return topics, document_topic_matrix
     else:
         print("\nInvalid choice. Please enter 1 or 2.")
-        return choose_topic_modeling_method(bow_matrix, vectorizer, num_topics, num_words)
+        return choose_topic_modeling_method(tfidf_matrix, vectorizer, num_topics, num_words)
 
 # Κύριο πρόγραμμα
 if __name__ == "__main__":
     num_topics = 5
     num_words = 10
-    topics, document_topic_matrix = choose_topic_modeling_method(bow_matrix, vectorizer, num_topics, num_words)
+    topics, document_topic_matrix = choose_topic_modeling_method(tfidf_matrix, vectorizer, num_topics, num_words)
     
     print("\nTopics:")
     for topic in topics:
         print(topic)
     
-    print("\nDocument-Topic Probabilities:")
-    for i, doc_probabilities in enumerate(document_topic_matrix):
-        dominant_topic = doc_probabilities.argmax()
-        formatted_probabilities = [f"{prob:.2f}" for prob in doc_probabilities]
-        print(f"Document {i + 1}: Dominant Topic {dominant_topic + 1}, Probabilities: {formatted_probabilities}")
+    #print("\nDocument-Topic Probabilities:")
+    #for i, doc_probabilities in enumerate(document_topic_matrix):
+        #dominant_topic = doc_probabilities.argmax()
+        #formatted_probabilities = [f"{prob:.2f}" for prob in doc_probabilities]
+        #print(f"Document {i + 1}: Dominant Topic {dominant_topic + 1}, Probabilities: {formatted_probabilities}")
 
+    # Μετράμε πόσα έγγραφα αντιστοιχούν σε κάθε θέμα
+    dominant_topics = document_topic_matrix.argmax(axis=1)  # Βρίσκουμε το κυρίαρχο θέμα για κάθε έγγραφο
+    topic_counts = np.bincount(dominant_topics, minlength=num_topics)  # Μετράμε τον αριθμό των εγγράφων ανά θέμα
 
-
-    # Count how many documents align with each topic
-    dominant_topics = document_topic_matrix.argmax(axis=1)  # Find the dominant topic for each document
-    topic_counts = np.bincount(dominant_topics, minlength=num_topics)  # Count documents per topic
-
-    # Plot the distribution of documents across topics
-    plt.figure(figsize=(10, 6))
+    # Δημιουργούμε ένα διάγραμμα για την κατανομή των εγγράφων στα θέματα
+    plt.figure(figsize=(6, 6))
     plt.bar(range(1, num_topics + 1), topic_counts, color='skyblue', edgecolor='black')
     plt.xlabel('Topic', fontsize=14)
     plt.ylabel('Number of Documents', fontsize=14)
     plt.title('Document Distribution Across Topics', fontsize=16)
-    plt.xticks(range(1, num_topics + 1))  # Adjust the x-axis to start from Topic 1
+    plt.xticks(range(1, num_topics + 1))  
     plt.show()
-   
+
+    import seaborn as sns
+
+    # Δημιουργία heatmap για τις πιθανότητες θεμάτων-κειμένων
+    plt.figure(figsize=(6, 6))  # Μέγεθος του γραφήματος
+    sns.heatmap(document_topic_matrix, annot=False, cmap='coolwarm', cbar=True)
+    plt.title('Heatmap των Πιθανοτήτων Θεμάτων-Κειμένων', fontsize=16)
+    plt.xlabel('Θέματα', fontsize=14)
+    plt.ylabel('Έγγραφα', fontsize=14)
+    plt.xticks(ticks=np.arange(num_topics) + 0.5, labels=[f'Topic {i+1}' for i in range(num_topics)], fontsize=10)
+    plt.show()
+
+   # Δημιουργία γραφήματος τύπου stacked bar chart
+    plt.figure(figsize=(6, 6))  # Μέγεθος του γραφήματος
+
+    # Κάθε μπάρα αντιπροσωπεύει ένα έγγραφο και οι διαφορετικές αποχρώσεις τα θέματα
+    for i in range(num_topics):
+        plt.bar(
+            range(document_topic_matrix.shape[0]),
+            document_topic_matrix[:, i],
+            bottom=np.sum(document_topic_matrix[:, :i], axis=1),
+            label=f'Θέμα {i + 1}'
+        )
+
+    plt.title('Stacked Bar Chart των Πιθανοτήτων Θεμάτων-Κειμένων', fontsize=16)
+    plt.xlabel('Έγγραφα', fontsize=14)
+    plt.ylabel('Πιθανότητα', fontsize=14)
+    plt.legend(title='Θέματα', fontsize=10)
+    plt.show()
+
+    
+
+    """ for topic_idx, topic in enumerate(lda.components_):
+        top_features_idx = topic.argsort()[-10:][::-1]
+        top_features = [vectorizer.get_feature_names_out()[i] for i in top_features_idx]
+        top_scores = topic[top_features_idx]
+        
+        plt.figure(figsize=(8, 4))
+        sns.barplot(x=top_scores, y=top_features, palette='coolwarm')
+        plt.title(f"Topic {topic_idx + 1} Top Words")
+        plt.xlabel("Score")
+        plt.show()"""
+
