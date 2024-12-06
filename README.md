@@ -25,7 +25,10 @@ You can install the required libraries using the following command:
 pip install nltk gensim numpy pandas matplotlib seaborn scikit-learn wordcloud
 ```
 ## How to Use
-Run the script. 
+Run the script using the following command:
+```bash
+python .\thesis.py
+```
 
 The program will prompt you to choose a topic modeling method:
 
