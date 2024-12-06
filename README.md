@@ -1,5 +1,4 @@
 ## Automatic Topic and Concept Extraction from Text Corpus
-## Description
 This program implements a process for automatic topic and concept extraction from a text corpus using topic modeling techniques. Specifically, it uses two main methods for topic extraction: Latent Dirichlet Allocation (LDA) and Latent Semantic Analysis (LSA). The goal of this program is to analyze a set of texts and extract the main topic. The program uses the Reuters Corpus, which contains news articles, for training and evaluating the models. Additionally, coherence scores are calculated to evaluate the quality of the extracted topics.
 
 ## Contents
