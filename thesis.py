@@ -222,8 +222,7 @@ if __name__ == "__main__":
     # Διαχωρισμός των εγγράφων σε εκπαιδευτικά (training) και δοκιμαστικά (test)
     train_docs = [doc for doc in documents if doc.startswith('training/')]
     test_docs = [doc for doc in documents if doc.startswith('test/')]
-
-    # Επεξεργαζόμαστε τα πρώτα n εκπαιδευτικά έγγραφα
+    
     n = 500 
 
     # Δημιουργούμε ένα DataFrame για να αποθηκεύσουμε τα δεδομένα από το Reuters corpus
