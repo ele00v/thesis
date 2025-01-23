@@ -39,12 +39,6 @@ from sklearn.decomposition import TruncatedSVD,LatentDirichletAllocation
 # nltk.download('wordnet')     
 # nltk.download('averaged_perceptron_tagger')
 
-# Αρχικοποίηση lemmatizer και stopwords
-lemmatizer = WordNetLemmatizer() 
-stop_words = set(stopwords.words('english'))
-custom_stopwords= {'say'}
-stop_words.update(custom_stopwords)
-
 # Συνάρτηση για την προεπεξεργασία του κειμένου
 def preprocess_text(text):
     try:
@@ -86,7 +80,7 @@ def calculate_coherence(topics, texts, dictionary, coherence_type='c_v'):
     coherence_score = coherence_model.get_coherence()
     return coherence_score
 
-# Συνάρτηση για τον υπολογισμό του perplexity
+# Συνάρτηση για τον υπολογισμό του perplexity score
 def calculate_perplexity(lda_model, count_matrix):
     try:
         perplexity_score = lda_model.perplexity(count_matrix)
@@ -95,6 +89,7 @@ def calculate_perplexity(lda_model, count_matrix):
         print(f"Σφάλμα κατά τον υπολογισμό του perplexity: {e}")
         return None
 
+# Συνάρτηση για τον υπολογισμό του top
 def calculate_topic_diversity(topics):
     unique_words = set(word for topic in topics for word in topic)
     total_words = sum(len(topic) for topic in topics)
@@ -134,24 +129,20 @@ def apply_lda(tfidf_matrix, vectorizer, num_topics, num_words):
         print(f"Άγνωστο σφάλμα κατά την εκπαίδευση του LDA: {e}")
         return None, None, None, None , None
 
-# Συνάρτηση για την εφαρμογή του LSA και εξαγωγή των θεμάτων και της αντιστοίχισης θεμάτων-κειμένων
+# Συνάρτηση για την εφαρμογή του LSA 
 def apply_lsa(tfidf_matrix, vectorizer, num_topics, num_words):
     try:
         # Δημιουργία του μοντέλου LSA με χρήση TruncatedSVD
         lsa = TruncatedSVD(n_components=num_topics, n_iter=100, random_state=0)
-        
         # Εφαρμογή του LSA στη μήτρα TF-IDF
         lsa.fit(tfidf_matrix)
-        
         # Εξαγωγή των χαρακτηριστικών (λέξεων) για κάθε θέμα
         feature_names = vectorizer.get_feature_names_out()
         topics = []
-        
         for topic_idx, topic in enumerate(lsa.components_):
             top_features_idx = topic.argsort()[-num_words:][::-1]
             top_features = [feature_names[i] for i in top_features_idx]
             topics.append(top_features)
-        
         # Υπολογισμός του πίνακα θεμάτων-κειμένων
         document_topic_matrix = lsa.transform(tfidf_matrix)
         # Υπολογισμός coherence score
@@ -201,31 +192,35 @@ def choose_topic_modeling_method(tfidf_matrix, vectorizer, num_topics, num_words
         except Exception as e:
             print(f"Άγνωστο σφάλμα κατά την επιλογή μεθόδου: {e}")
 
-# Συνάρτηση για τη δημιουργία και εμφάνιση των γραφημάτων
+# Συνάρτηση για τη δημιουργία και εμφάνιση γραφημάτων
 def visualizations(document_topic_matrix, num_topics,topics):
     # 1. Βαριόμετρα για την κατανομή των εγγράφων στα θέματα
     dominant_topics = document_topic_matrix.argmax(axis=1)  # Βρίσκουμε το κυρίαρχο θέμα για κάθε έγγραφο
     topic_counts = np.bincount(dominant_topics, minlength=num_topics)  # Μετράμε τον αριθμό των εγγράφων ανά θέμα
     
-    plt.figure(figsize=(6, 6))
+    plt.figure(figsize=(10, 6))
     plt.bar(range(1, num_topics + 1), topic_counts, color='skyblue', edgecolor='black')
-    plt.xlabel('Topic', fontsize=14)
-    plt.ylabel('Number of Documents', fontsize=14)
-    plt.title('Document Distribution Across Topics', fontsize=16)
-    plt.xticks(range(1, num_topics + 1))  
+    plt.xlabel('Θέματα', fontsize=14)
+    plt.ylabel('Αριθμός Εγγράφων', fontsize=14)
+    plt.title('Κατανομή Εγγράφων στα Θέματα', fontsize=16)
+    plt.xticks(range(1, num_topics + 1),fontsize=12)  
+    plt.grid(axis='y', linestyle='--', alpha=0.7)  # Προσθήκη βοηθητικού πλέγματος
+    plt.tight_layout()
     plt.show()
 
     # 2. Heatmap για τις πιθανότητες θεμάτων-κειμένων
-    plt.figure(figsize=(6, 6)) 
+    plt.figure(figsize=(10, 8)) 
     sns.heatmap(document_topic_matrix, annot=False, cmap='coolwarm', cbar=True)
     plt.title('Heatmap των Πιθανοτήτων Θεμάτων-Κειμένων', fontsize=16)
     plt.xlabel('Θέματα', fontsize=14)
     plt.ylabel('Έγγραφα', fontsize=14)
-    plt.xticks(ticks=np.arange(num_topics) + 0.5, labels=[f'Topic {i+1}' for i in range(num_topics)], fontsize=10)
+    plt.xticks(ticks=np.arange(num_topics) + 0.5, labels=[f'Θέμα {i+1}' for i in range(num_topics)], fontsize=10,  rotation=45)
+    plt.yticks(fontsize=10)
+    plt.tight_layout()
     plt.show()
 
     # 3. Stacked bar chart
-    plt.figure(figsize=(6, 6))  
+    plt.figure(figsize=(10, 8))  
     # Κάθε μπάρα αντιπροσωπεύει ένα έγγραφο και οι διαφορετικές αποχρώσεις τα θέματα
     for i in range(num_topics):
         plt.bar(
@@ -238,34 +233,11 @@ def visualizations(document_topic_matrix, num_topics,topics):
     plt.title('Stacked Bar Chart των Πιθανοτήτων Θεμάτων-Κειμένων', fontsize=16)
     plt.xlabel('Έγγραφα', fontsize=14)
     plt.ylabel('Πιθανότητα', fontsize=14)
-    plt.legend(title='Θέματα', fontsize=10)
+    plt.legend(title='Θέματα', fontsize=10, loc='upper left', bbox_to_anchor=(1, 1)) 
+    plt.tight_layout()
     plt.show()
 
-     # 4. WordCloud
-     # Flatten the list of topics and count word frequencies
-    word_frequencies = Counter(word for topic in topics for word in topic)
-    
-    # Create and display the WordCloud
-    wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(word_frequencies)
-    plt.figure(figsize=(10, 5))
-    plt.imshow(wordcloud, interpolation='bilinear')
-    plt.axis('off')
-    plt.title("WordCloud of Topics", fontsize=16)
-    plt.show()
-
-     # 5. Θερμοχάρτης Συγχρονισμού
-    # Υπολογισμός της συσχέτισης των θεμάτων μεταξύ τους
-    correlation_matrix = np.corrcoef(document_topic_matrix.T)  # Υπολογισμός συσχέτισης (αρνητική ή θετική)
-    
-    # Δημιουργία του θερμοχάρτη
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', xticklabels=[f'Topic {i+1}' for i in range(num_topics)], yticklabels=[f'Topic {i+1}' for i in range(num_topics)], cbar=True)
-    plt.title('Θερμοχάρτης Συγχρονισμού Θεμάτων', fontsize=16)
-    plt.xlabel('Θέματα', fontsize=14)
-    plt.ylabel('Θέματα', fontsize=14)
-    plt.show()
-
-    # 6. Γράφημα Συχνότητας Λέξεων
+    # 4. Γράφημα Συχνότητας Λέξεων
     # Συχνότητες των λέξεων σε όλα τα θέματα
     word_frequencies = Counter(word for topic in topics for word in topic)
     
@@ -278,11 +250,47 @@ def visualizations(document_topic_matrix, num_topics,topics):
     plt.xlabel('Συχνότητα Λέξεων', fontsize=14)
     plt.ylabel('Λέξεις', fontsize=14)
     plt.title('Γράφημα Συχνότητας Λέξεων', fontsize=16)
-    plt.gca().invert_yaxis()  # Για να εμφανίζεται η πιο συχνή λέξη πάνω
+    plt.gca().invert_yaxis()  # Αντιστροφή άξονα για να εμφανίζεται η πιο συχνή λέξη στην κορυφή
+    plt.grid(axis='x', linestyle='--', alpha=0.7)  # Προσθήκη βοηθητικού πλέγματος
+    plt.tight_layout()
     plt.show()
+
+    # 5. WordCloud για τις λέξεις των θεμάτων
+    word_frequencies = Counter(word for topic in topics for word in topic)
+    wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(word_frequencies)
+    plt.figure(figsize=(10, 6))
+    plt.imshow(wordcloud, interpolation='bilinear')
+    plt.axis('off')
+    plt.title("WordCloud των Θεμάτων", fontsize=16)
+    plt.tight_layout()
+    plt.show()
+
+     # 6. Θερμοχάρτης Συγχρονισμού
+    # Υπολογισμός της συσχέτισης των θεμάτων μεταξύ τους
+    correlation_matrix = np.corrcoef(document_topic_matrix.T)
+    
+    # Δημιουργία του θερμοχάρτη
+    plt.figure(figsize=(10, 6))
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm'
+                ,xticklabels=[f'Θέμα {i+1}' for i in range(num_topics)], 
+                yticklabels=[f'Θέμα {i+1}' for i in range(num_topics)], 
+                cbar=True, fmt=".2f")
+    plt.title('Θερμοχάρτης Συγχρονισμού Θεμάτων', fontsize=16)
+    plt.xlabel('Θέματα', fontsize=14)
+    plt.ylabel('Θέματα', fontsize=14)
+    plt.tight_layout()
+    plt.show()
+
 
 # Κύριο πρόγραμμα
 if __name__ == "__main__":
+    # Αρχικοποίηση lemmatizer και stopwords
+    lemmatizer = WordNetLemmatizer() 
+    stop_words = set(stopwords.words('english'))
+    #Προσθήκη λέξεων στην λίστα των stopwords
+    custom_stopwords= {'say'}
+    stop_words.update(custom_stopwords)
+
     # Λίστα με τα διαθέσιμα έγγραφα του Reuters corpus
     documents = reuters.fileids()
 
@@ -290,7 +298,7 @@ if __name__ == "__main__":
     train_docs = [doc for doc in documents if doc.startswith('training/')]
     test_docs = [doc for doc in documents if doc.startswith('test/')]
 
-    n = 100
+    n = 200
 
     # Δημιουργούμε ένα DataFrame για να αποθηκεύσουμε τα δεδομένα από το Reuters corpus
     df_reuters = pd.DataFrame({
@@ -325,16 +333,15 @@ if __name__ == "__main__":
     # Προσθέτουμε τη στήλη 'ID'
     tfidf_df.insert(0, 'ID', df_reuters['ID'])
 
-    # Αποθήκευση TF-IDF σε αρχείο κειμένου
-    with open('tfidf_matrix.txt', 'w', encoding='utf-8') as f:
-        f.write(tfidf_df.to_string(index=False))
-
     num_topics = 10
     num_words = 5
     texts = [doc.split() for doc in df_reuters['Processed_Text']] 
     dictionary = corpora.Dictionary(texts) 
 
     topic_words, topics, document_topic_matrix, coherence_score, preplexity_score, topic_diversity = choose_topic_modeling_method(tfidf_matrix, vectorizer, num_topics, num_words)
+    print(f"\nNumber of documents:{n}")
+    print(f"\nNumber of topics:{num_topics}")
+    print(f"\nNumber of words:{num_words}")
 
     print("\nTopics:")
     for topic in topics:
