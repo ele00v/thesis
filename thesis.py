@@ -27,9 +27,9 @@ from nltk.tokenize import word_tokenize
 from sklearn.model_selection import GridSearchCV
 from nltk.corpus import reuters,wordnet,stopwords
 from gensim.models.phrases import Phrases, Phraser
-from sklearn.feature_extraction.text import CountVectorizer
 from nltk.stem import PorterStemmer,WordNetLemmatizer
 from gensim.models.coherencemodel import CoherenceModel
+from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer 
 from sklearn.decomposition import TruncatedSVD,LatentDirichletAllocation
 
@@ -52,7 +52,7 @@ def preprocess_text(text):
         text = text.strip()
         # Διαχωρισμός του κειμένου σε λέξεις (tokenization)
         words = word_tokenize(text)
-        # Αφαίρεση των stopwords και μη αλφαβητικών λέξεων+
+        # Αφαίρεση των stopwords και μη αλφαβητικών λέξεων
         words = [word for word in words if word.isalpha()]
         words = [word for word in words if word not in stop_words and word not in custom_stopwords]
         words_with_pos = pos_tag(words)  # Επιστροφή λέξεων με τα POS tags
@@ -90,7 +90,7 @@ def calculate_perplexity(lda_model, count_matrix):
         print(f"Σφάλμα κατά τον υπολογισμό του perplexity: {e}")
         return None
 
-# Συνάρτηση για τον υπολογισμό του top
+# Συνάρτηση για τον υπολογισμό του topic divesity
 def calculate_topic_diversity(topics):
     unique_words = set(word for topic in topics for word in topic)
     total_words = sum(len(topic) for topic in topics)
@@ -133,7 +133,7 @@ def apply_lsa(tfidf_matrix, vectorizer, num_topics, num_words):
         lsa = TruncatedSVD(n_components=num_topics, n_iter=100, random_state=0)
         # Εφαρμογή του LSA στη μήτρα TF-IDF
         lsa.fit(tfidf_matrix)
-        # Εξαγωγή των χαρακτηριστικών (λέξεων) για κάθε θέμα
+        # Εξαγωγή των χαρακτηριστικών λέξεων για κάθε θέμα
         feature_names = vectorizer.get_feature_names_out()
         topics = []
         for topic_idx, topic in enumerate(lsa.components_):
@@ -244,7 +244,6 @@ def visualizations(document_topic_matrix, num_topics,topics):
     plt.tight_layout()
     plt.show()
     # 5. WordCloud για τις λέξεις των θεμάτων
-    word_frequencies = Counter(word for topic in topics for word in topic)
     wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(word_frequencies)
     plt.figure(figsize=(10, 6))
     plt.imshow(wordcloud, interpolation='bilinear')
@@ -273,14 +272,14 @@ if __name__ == "__main__":
     lemmatizer = WordNetLemmatizer() 
     stop_words = set(stopwords.words('english'))
     #Προσθήκη λέξεων στην λίστα των stopwords
-    custom_stopwords= {'say'}
+    custom_stopwords= {'say', 'would'}
     stop_words.update(custom_stopwords)
     # Λίστα με τα διαθέσιμα έγγραφα του Reuters corpus
     documents = reuters.fileids()
     # Διαχωρισμός των εγγράφων σε εκπαιδευτικά (training) και δοκιμαστικά (test)
     train_docs = [doc for doc in documents if doc.startswith('training/')]
     test_docs = [doc for doc in documents if doc.startswith('test/')]
-    n = 500
+    n = 100
     # Δημιουργούμε ένα DataFrame για να αποθηκεύσουμε τα δεδομένα από το Reuters corpus
     df_reuters = pd.DataFrame({
         'ID': test_docs[:n],
@@ -306,8 +305,8 @@ if __name__ == "__main__":
         print(f"Άγνωστο σφάλμα κατά τη δημιουργία της μήτρας TF-IDF: {e}")
     # Προσθέτουμε τη στήλη 'ID'
     tfidf_df.insert(0, 'ID', df_reuters['ID'])
-    num_topics = 10
-    num_words = 10
+    num_topics = 5
+    num_words = 5
     texts = [doc.split() for doc in df_reuters['Processed_Text']] 
     dictionary = corpora.Dictionary(texts) 
     topic_words, topics, d_t_m, coherence_score, preplexity_score, topic_diversity = choose_method(tfidf_matrix, vectorizer, num_topics, num_words)
